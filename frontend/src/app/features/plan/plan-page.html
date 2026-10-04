@@ -1,0 +1,117 @@
+<section class="page">
+  <header class="page-head">
+    <h1>Plan</h1>
+    @if (stage() === 'ready' || stage() === 'paycheck') {
+      <button type="button" class="btn btn-primary btn-sm" (click)="addFlow()">+ Flow</button>
+    }
+  </header>
+
+  @switch (stage()) {
+    @case ('loading') {
+      <p class="muted">Loading…</p>
+    }
+    @case ('error') {
+      <app-empty-state heading="Can't reach the backend" [body]="store.error() ?? ''">
+        <button type="button" class="btn" (click)="store.load()">Retry</button>
+      </app-empty-state>
+    }
+    @case ('buckets') {
+      <app-empty-state
+        step="Step 1 of 3"
+        heading="Start with buckets"
+        body="Add every place money sits: checking, hub, policy, runway, engine, Roth, IRA, 401k. Give checking a floor and runway a target. Flows come next."
+      >
+        <button type="button" class="btn btn-primary" (click)="addBucket()">Add first bucket</button>
+      </app-empty-state>
+    }
+    @default {
+      <div class="two-col">
+        <!-- Buckets -->
+        <div class="section">
+          <div class="section-head">
+            <button type="button" class="disclosure" (click)="bucketsOpen.set(!bucketsOpen())" [attr.aria-expanded]="bucketsOpen()">
+              <h2>Buckets <span class="count">{{ store.buckets().length }}</span></h2>
+              <span class="chev" [class.open]="bucketsOpen()" aria-hidden="true">›</span>
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="addBucket()">+ Bucket</button>
+          </div>
+          @if (bucketsOpen()) {
+            <div class="card">
+              @for (b of store.buckets(); track b.id) {
+                <button type="button" class="row" (click)="editBucket(b)">
+                  <div class="row-main">
+                    <div class="row-title">{{ b.name }}</div>
+                    <div class="row-sub">{{ bucketSub(b) }}</div>
+                  </div>
+                  <span class="small">{{ flowCountLabel(b) }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Flows -->
+        <div class="section">
+          @if (stage() === 'paycheck') {
+            <app-empty-state
+              step="Step 2 of 3"
+              heading="Now add the paycheck flows"
+              body="Where does each check land, and what moves out of checking on payday? Then add the monthly and annual flows."
+            >
+              <button type="button" class="btn btn-primary" (click)="addFlow('per_paycheck')">Add paycheck flow</button>
+            </app-empty-state>
+          } @else {
+            @for (group of store.groups(); track group.cadence) {
+              <div class="group">
+                <div class="section-head">
+                  <h2>{{ group.label }}</h2>
+                  <button type="button" class="btn btn-ghost btn-sm" (click)="addFlow(group.cadence)">+ Add</button>
+                </div>
+                <div class="card">
+                  @for (f of group.flows; track f.id) {
+                    <button type="button" class="row" [class.dim]="!f.active" (click)="editFlow(f)">
+                      <div class="row-main">
+                        <div class="row-title">
+                          {{ f.name }}
+                          @if (!f.active) { <span class="tag">paused</span> }
+                        </div>
+                        <div class="row-sub">{{ route(f) }}</div>
+                        @if (stopLabel(f); as stop) {
+                          <div class="small">{{ stop }}</div>
+                        }
+                      </div>
+                      <div class="row-end">
+                        @if (f.amount !== null) {
+                          <span class="row-amount">{{ fmt(f.amount) }}</span>
+                        } @else {
+                          <span class="row-rule">{{ amountLabel(f) }}</span>
+                        }
+                      </div>
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+            @if (!hasPaycheckFlow()) {
+              <p class="small nudge">No paycheck flow yet. <button type="button" class="btn btn-ghost btn-sm" (click)="addFlow('per_paycheck')">Add one</button></p>
+            }
+            <p class="small nudge">Step 3 of 3: once the routine is in, go to Now and enter a balance snapshot per bucket.</p>
+          }
+        </div>
+      </div>
+    }
+  }
+</section>
+
+<app-bucket-form-sheet
+  [open]="bucketSheetOpen()"
+  [bucket]="editingBucket()"
+  (closed)="closeSheet()"
+  (saved)="afterBucketSaved()"
+/>
+<app-flow-form-sheet
+  [open]="flowSheetOpen()"
+  [flow]="editingFlow()"
+  [presetCadence]="presetCadence()"
+  (closed)="closeSheet()"
+/>
