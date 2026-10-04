@@ -27,28 +27,27 @@ Other targets: `make migrate`, `make revision m="..."`, `make downgrade`, `make 
 Configuration is read from `HUB_*` environment variables or `backend/.env`
 (see `backend/.env.example`). Defaults match the compose file.
 
-## Deploy (Fly.io)
+## Deploy (Fly.io, via GitHub Actions)
 
-One Fly app serves both halves: the Dockerfile builds the Angular app and copies it into the
-API image, FastAPI serves it at `/` and the API at `/api`. Migrations run as the release
-command on every deploy. Needs [flyctl](https://fly.io/docs/flyctl/install/) and `fly auth login`.
+`.github/workflows/ci.yml` runs the backend and frontend tests on every push and pull request.
+On a push to `main` that passes, it deploys with `flyctl deploy --remote-only`: Fly builds the
+Dockerfile (Angular build copied into the API image), runs `alembic upgrade head` as the release
+command, then switches traffic. `make deploy` runs the same command by hand.
 
-First time only:
+One-time setup, from a machine with [flyctl](https://fly.io/docs/flyctl/install/) logged in:
 
 ```sh
 make deploy-setup                                   # app + Fly Postgres, attaches DATABASE_URL
 fly secrets set HUB_BASIC_AUTH=you:a-long-password  # browser login; without it the app is public
+fly tokens create deploy -x 8760h                   # paste the output into GitHub:
+                                                    #   Settings > Secrets and variables > Actions
+                                                    #   name FLY_API_TOKEN
 ```
 
-Every deploy after that:
-
-```sh
-make deploy        # fly deploy --remote-only
-fly open           # https://finance-hub.fly.dev
-```
-
-The app name and region live in `fly.toml` (`finance-hub`, `ord`); change them before the first
-`make deploy-setup` if either is taken. `/api/health` stays unauthenticated for Fly's health check.
+The deploy job targets the `production` GitHub environment, so required reviewers or a wait
+timer can be added there later. The app name and region live in `fly.toml` (`finance-hub`,
+`ord`); change them before `make deploy-setup` if either is taken. `/api/health` stays
+unauthenticated for Fly's health check.
 
 ## Backend layout
 

@@ -66,7 +66,7 @@ test-frontend: ## Angular unit tests, single run
 lint: ## ruff check + format check on the backend
 	cd $(BACKEND) && .venv/bin/ruff check . && .venv/bin/ruff format --check .
 
-deploy: ## Deploy to Fly.io (needs flyctl + `fly auth login`; see README "Deploy")
+deploy: ## Deploy to Fly.io by hand; CI does this on push to main (see README "Deploy")
 	fly deploy --remote-only
 
 deploy-setup: ## One-time Fly setup: app, Postgres, secrets. Run once, then `make deploy`.
