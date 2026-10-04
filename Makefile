@@ -66,10 +66,10 @@ test-frontend: ## Angular unit tests, single run
 lint: ## ruff check + format check on the backend
 	cd $(BACKEND) && .venv/bin/ruff check . && .venv/bin/ruff format --check .
 
-deploy: ## Deploy to Fly.io by hand; normally Fly's GitHub integration deploys on push to main
+deploy: ## Deploy to Fly.io by hand; CI does this on push to main after fly-bootstrap has run
 	fly deploy --remote-only
 
-deploy-setup: ## CLI alternative to the dashboard's Launch from GitHub: app, Postgres, secrets
+deploy-setup: ## CLI alternative to the fly-bootstrap workflow: app, Postgres, secrets
 	fly apps create finance-hub || true
 	fly postgres create --name finance-hub-db --region ord --vm-size shared-cpu-1x --volume-size 1 --initial-cluster-size 1
 	fly postgres attach finance-hub-db --app finance-hub
