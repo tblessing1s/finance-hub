@@ -1,0 +1,11 @@
+.git
+**/node_modules
+**/.venv
+**/dist
+**/.angular
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+backend/.env
+db
+docker-compose.yml

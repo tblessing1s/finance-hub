@@ -27,6 +27,27 @@ Other targets: `make migrate`, `make revision m="..."`, `make downgrade`, `make 
 Configuration is read from `HUB_*` environment variables or `backend/.env`
 (see `backend/.env.example`). Defaults match the compose file.
 
+## Deploy (Fly.io, launched from GitHub)
+
+Fly's GitHub integration owns deploys: in the Fly dashboard choose **Launch from GitHub**, pick
+this repository and the `main` branch, and Fly builds the root `Dockerfile` (Angular build copied
+into the API image) on every push to `main`. `fly.toml` supplies the rest: `alembic upgrade head`
+runs as the release command before traffic switches, and `/api/health` is the health check.
+
+During the launch flow, add a **Postgres** database; Fly attaches it and sets `DATABASE_URL`,
+which the app reads directly. If you give the app a name other than `finance-hub`, change `app`
+in `fly.toml` to match on your next push.
+
+After the first deploy, set the login under the app's **Secrets**:
+
+| Secret | Value |
+| --- | --- |
+| `HUB_BASIC_AUTH` | `you:a-long-password`. Without it the app is public. |
+
+GitHub Actions (`.github/workflows/ci.yml`) is the test gate: backend lint and pytest against a
+Postgres service, frontend tests and a production build, on every push and pull request. It does
+not deploy. `make deploy` runs `fly deploy --remote-only` by hand if ever needed.
+
 ## Backend layout
 
 ```
