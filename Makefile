@@ -10,7 +10,7 @@ UVICORN := $(VENV)/bin/uvicorn
 ALEMBIC := $(VENV)/bin/alembic
 PYTEST := $(VENV)/bin/pytest
 
-.PHONY: help install install-backend install-frontend db-up db-down db-wait migrate revision \
+.PHONY: deploy deploy-setup help install install-backend install-frontend db-up db-down db-wait migrate revision \
         downgrade dev dev-backend dev-frontend test test-backend test-frontend lint
 
 help: ## List targets
@@ -65,3 +65,12 @@ test-frontend: ## Angular unit tests, single run
 
 lint: ## ruff check + format check on the backend
 	cd $(BACKEND) && .venv/bin/ruff check . && .venv/bin/ruff format --check .
+
+deploy: ## Deploy to Fly.io (needs flyctl + `fly auth login`; see README "Deploy")
+	fly deploy --remote-only
+
+deploy-setup: ## One-time Fly setup: app, Postgres, secrets. Run once, then `make deploy`.
+	fly apps create finance-hub || true
+	fly postgres create --name finance-hub-db --region ord --vm-size shared-cpu-1x --volume-size 1 --initial-cluster-size 1
+	fly postgres attach finance-hub-db --app finance-hub
+	@echo "Now set the login:  fly secrets set HUB_BASIC_AUTH=you:a-long-password --app finance-hub"
