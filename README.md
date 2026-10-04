@@ -27,27 +27,26 @@ Other targets: `make migrate`, `make revision m="..."`, `make downgrade`, `make 
 Configuration is read from `HUB_*` environment variables or `backend/.env`
 (see `backend/.env.example`). Defaults match the compose file.
 
-## Deploy (Fly.io, via GitHub Actions)
+## Deploy (Fly.io, launched from GitHub)
 
-`.github/workflows/ci.yml` runs the backend and frontend tests on every push and pull request.
-On a push to `main` that passes, it deploys with `flyctl deploy --remote-only`: Fly builds the
-Dockerfile (Angular build copied into the API image), runs `alembic upgrade head` as the release
-command, then switches traffic. `make deploy` runs the same command by hand.
+Fly's GitHub integration owns deploys: in the Fly dashboard choose **Launch from GitHub**, pick
+this repository and the `main` branch, and Fly builds the root `Dockerfile` (Angular build copied
+into the API image) on every push to `main`. `fly.toml` supplies the rest: `alembic upgrade head`
+runs as the release command before traffic switches, and `/api/health` is the health check.
 
-One-time setup, from a machine with [flyctl](https://fly.io/docs/flyctl/install/) logged in:
+During the launch flow, add a **Postgres** database; Fly attaches it and sets `DATABASE_URL`,
+which the app reads directly. If you give the app a name other than `finance-hub`, change `app`
+in `fly.toml` to match on your next push.
 
-```sh
-make deploy-setup                                   # app + Fly Postgres, attaches DATABASE_URL
-fly secrets set HUB_BASIC_AUTH=you:a-long-password  # browser login; without it the app is public
-fly tokens create deploy -x 8760h                   # paste the output into GitHub:
-                                                    #   Settings > Secrets and variables > Actions
-                                                    #   name FLY_API_TOKEN
-```
+After the first deploy, set the login under the app's **Secrets**:
 
-The deploy job targets the `production` GitHub environment, so required reviewers or a wait
-timer can be added there later. The app name and region live in `fly.toml` (`finance-hub`,
-`ord`); change them before `make deploy-setup` if either is taken. `/api/health` stays
-unauthenticated for Fly's health check.
+| Secret | Value |
+| --- | --- |
+| `HUB_BASIC_AUTH` | `you:a-long-password`. Without it the app is public. |
+
+GitHub Actions (`.github/workflows/ci.yml`) is the test gate: backend lint and pytest against a
+Postgres service, frontend tests and a production build, on every push and pull request. It does
+not deploy. `make deploy` runs `fly deploy --remote-only` by hand if ever needed.
 
 ## Backend layout
 

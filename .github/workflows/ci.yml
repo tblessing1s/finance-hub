@@ -1,4 +1,4 @@
-name: CI and deploy
+name: CI
 
 on:
   push:
@@ -6,6 +6,8 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Deploys are not done here: Fly's GitHub integration (dashboard > Launch from GitHub)
+# builds and deploys on push to main. This workflow is the test gate for pull requests.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -58,19 +60,3 @@ jobs:
       - run: npm install -g npm@11 && npm ci --no-audit --no-fund
       - run: npx ng test --watch=false
       - run: npx ng build --configuration production
-
-  deploy:
-    name: Deploy to Fly.io
-    needs: [backend, frontend]
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: production
-    concurrency:
-      group: fly-deploy
-      cancel-in-progress: false
-    env:
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --remote-only
