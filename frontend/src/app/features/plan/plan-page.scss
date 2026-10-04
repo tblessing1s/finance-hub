@@ -1,0 +1,10 @@
+.group { margin-bottom: 18px; }
+.row-end { text-align: right; }
+.count { font-weight: 500; color: var(--muted); margin-left: 4px; }
+.disclosure {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 0; background: transparent; padding: 0; cursor: pointer;
+}
+.chev { display: inline-block; color: var(--muted); font-size: 18px; line-height: 1; transition: transform 0.15s; transform: rotate(0deg); }
+.chev.open { transform: rotate(90deg); }
+.nudge { margin: 6px 2px 0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }

@@ -1,0 +1,19 @@
+<main class="shell">
+  <router-outlet />
+</main>
+
+<nav class="tabbar" aria-label="Primary">
+  @for (tab of tabs; track tab.path) {
+    <a
+      class="tab"
+      [routerLink]="tab.path"
+      routerLinkActive="active"
+      ariaCurrentWhenActive="page"
+    >
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <path [attr.d]="tab.icon" fill="currentColor" />
+      </svg>
+      <span>{{ tab.label }}</span>
+    </a>
+  }
+</nav>
