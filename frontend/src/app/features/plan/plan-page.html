@@ -26,6 +26,20 @@
     }
     @default {
       <div class="two-col">
+        <div>
+          <!-- Flow map -->
+          @if (stage() === 'ready') {
+            <div class="section">
+              <div class="section-head"><h2>Where money moves</h2></div>
+              <app-flow-map
+                [buckets]="store.buckets()"
+                [flows]="store.flows()"
+                (bucketTap)="editBucketById($event)"
+                (flowTap)="editFlow($event)"
+              />
+            </div>
+          }
+
         <!-- Buckets -->
         <div class="section">
           <div class="section-head">
@@ -48,6 +62,7 @@
               }
             </div>
           }
+        </div>
         </div>
 
         <!-- Flows -->

@@ -13,6 +13,7 @@ import { PlanStore } from '../../core/plan.store';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { BucketFormSheet } from './bucket-form-sheet';
 import { FlowFormSheet } from './flow-form-sheet';
+import { FlowMap } from './flow-map';
 
 type SheetState =
   | { kind: 'none' }
@@ -26,7 +27,7 @@ type SheetState =
  */
 @Component({
   selector: 'app-plan-page',
-  imports: [EmptyState, BucketFormSheet, FlowFormSheet],
+  imports: [EmptyState, BucketFormSheet, FlowFormSheet, FlowMap],
   templateUrl: './plan-page.html',
   styleUrl: './plan-page.scss',
 })
@@ -76,6 +77,11 @@ export class PlanPage implements OnInit {
 
   protected editBucket(bucket: Bucket): void {
     this.sheet.set({ kind: 'bucket', bucket });
+  }
+
+  protected editBucketById(id: number): void {
+    const bucket = this.store.bucketsById().get(id);
+    if (bucket) this.editBucket(bucket);
   }
 
   protected addFlow(preset: Cadence | null = null): void {
