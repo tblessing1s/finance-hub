@@ -27,26 +27,31 @@ Other targets: `make migrate`, `make revision m="..."`, `make downgrade`, `make 
 Configuration is read from `HUB_*` environment variables or `backend/.env`
 (see `backend/.env.example`). Defaults match the compose file.
 
-## Deploy (Fly.io, launched from GitHub)
+## Deploy (Fly.io, entirely from GitHub Actions)
 
-Fly's GitHub integration owns deploys: in the Fly dashboard choose **Launch from GitHub**, pick
-this repository and the `main` branch, and Fly builds the root `Dockerfile` (Angular build copied
-into the API image) on every push to `main`. `fly.toml` supplies the rest: `alembic upgrade head`
-runs as the release command before traffic switches, and `/api/health` is the health check.
+Nothing needs flyctl on a laptop. Two workflows in `.github/workflows/`:
 
-During the launch flow, add a **Postgres** database; Fly attaches it and sets `DATABASE_URL`,
-which the app reads directly. If you give the app a name other than `finance-hub`, change `app`
-in `fly.toml` to match on your next push.
+- `fly-bootstrap.yml` (run by hand, once): creates the Fly app and a Fly Postgres, attaches it
+  (which sets `DATABASE_URL`), pushes the `HUB_BASIC_AUTH` secret, and runs the first deploy.
+  Every step checks before acting, so re-running it is harmless.
+- `ci.yml` (automatic): backend and frontend tests on every push and pull request; on a passing
+  push to `main`, `flyctl deploy --remote-only`. Fly builds the root `Dockerfile` (Angular build
+  copied into the API image), runs `alembic upgrade head` as the release command, and switches
+  traffic once `/api/health` passes. The deploy job skips with a warning until bootstrap has run.
 
-After the first deploy, set the login under the app's **Secrets**:
+Setup:
 
-| Secret | Value |
-| --- | --- |
-| `HUB_BASIC_AUTH` | `you:a-long-password`. Without it the app is public. |
+1. Fly dashboard → Account → Access Tokens → create an **org** token (app-scoped deploy tokens
+   cannot create apps). Copy it once.
+2. GitHub → repo Settings → Secrets and variables → Actions:
+   - secret `FLY_API_TOKEN`: the token from step 1
+   - secret `HUB_BASIC_AUTH`: `you:a-long-password`, the browser login (without it the app is public)
+   - variable `FLY_APP` (optional): only if `finance-hub` is taken on Fly; the workflows and
+     `fly.toml`'s `app` should agree, so change both
+3. GitHub → Actions → **Fly bootstrap (one time)** → Run workflow. Defaults: org `personal`,
+   region `ord`, smallest Postgres. Watch the log; the last step prints the URL.
 
-GitHub Actions (`.github/workflows/ci.yml`) is the test gate: backend lint and pytest against a
-Postgres service, frontend tests and a production build, on every push and pull request. It does
-not deploy. `make deploy` runs `fly deploy --remote-only` by hand if ever needed.
+After that, merging to `main` deploys. `make deploy` runs the same `flyctl deploy` by hand.
 
 ## Backend layout
 

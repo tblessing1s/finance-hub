@@ -1,0 +1,101 @@
+name: Fly bootstrap (one time)
+
+# Creates the Fly app and its Postgres, attaches the database (sets DATABASE_URL), pushes the
+# HUB_BASIC_AUTH secret, then runs the first deploy. Safe to re-run: every step checks first.
+#
+# Needs two repository secrets:
+#   FLY_API_TOKEN   an ORG-scoped token (Fly dashboard > Account > Access Tokens, or
+#                   `fly tokens create org`). App-scoped deploy tokens cannot create apps.
+#   HUB_BASIC_AUTH  "user:password" for the browser login. Optional, but without it the app is public.
+# Optional repository variable:
+#   FLY_APP         app name, when "finance-hub" is taken. Also used by ci.yml on deploy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      org:
+        description: Fly organization slug
+        default: personal
+        required: true
+      region:
+        description: Fly region for app and database
+        default: ord
+        required: true
+      db_vm_size:
+        description: Postgres machine size
+        default: shared-cpu-1x
+        required: true
+      db_volume_gb:
+        description: Postgres volume size in GB
+        default: "1"
+        required: true
+
+concurrency:
+  group: fly-deploy
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      APP: ${{ vars.FLY_APP || 'finance-hub' }}
+      ORG: ${{ inputs.org }}
+      REGION: ${{ inputs.region }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Check token
+        run: |
+          test -n "$FLY_API_TOKEN" || { echo "::error::FLY_API_TOKEN secret is not set"; exit 1; }
+          flyctl auth whoami
+
+      - name: Create app if missing
+        run: |
+          if flyctl status --app "$APP" >/dev/null 2>&1; then
+            echo "app $APP exists"
+          else
+            flyctl apps create "$APP" --org "$ORG"
+          fi
+
+      - name: Create Postgres if missing
+        env:
+          DB: ${{ vars.FLY_APP || 'finance-hub' }}-db
+        run: |
+          if flyctl status --app "$DB" >/dev/null 2>&1; then
+            echo "postgres $DB exists"
+          else
+            flyctl postgres create \
+              --name "$DB" --org "$ORG" --region "$REGION" \
+              --vm-size "${{ inputs.db_vm_size }}" \
+              --volume-size "${{ inputs.db_volume_gb }}" \
+              --initial-cluster-size 1
+          fi
+
+      - name: Attach Postgres if not attached
+        env:
+          DB: ${{ vars.FLY_APP || 'finance-hub' }}-db
+        run: |
+          if flyctl secrets list --app "$APP" | grep -q '^DATABASE_URL'; then
+            echo "DATABASE_URL already set on $APP"
+          else
+            flyctl postgres attach "$DB" --app "$APP" --yes
+          fi
+
+      - name: Set login secret
+        env:
+          HUB_BASIC_AUTH: ${{ secrets.HUB_BASIC_AUTH }}
+        run: |
+          if [ -z "$HUB_BASIC_AUTH" ]; then
+            echo "::warning::HUB_BASIC_AUTH secret not set; the app will be public until it is"
+          else
+            flyctl secrets set HUB_BASIC_AUTH="$HUB_BASIC_AUTH" --app "$APP" --stage
+          fi
+
+      - name: First deploy
+        run: flyctl deploy --remote-only --app "$APP" --region "$REGION"
+
+      - name: Where it lives
+        run: flyctl status --app "$APP" && echo "https://$APP.fly.dev"
